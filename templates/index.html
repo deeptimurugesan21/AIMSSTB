@@ -1,0 +1,313 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data and Prediction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+    <style>
+        body { font-family: 'Arial', sans-serif; }
+        .fan {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            margin: 20px auto;
+        }
+        .fan .blade {
+            width: 50px;
+            height: 10px;
+            background-color: #4CAF50;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 0% 50%;
+            border-radius: 5px;
+        }
+        .fan .blade:nth-child(1) {
+            transform: rotate(0deg) translateX(-50%);
+        }
+        .fan .blade:nth-child(2) {
+            transform: rotate(120deg) translateX(-50%);
+        }
+        .fan .blade:nth-child(3) {
+            transform: rotate(240deg) translateX(-50%);
+        }
+        .fan.active .blade {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg) translateX(-50%); }
+            100% { transform: rotate(360deg) translateX(-50%); }
+        }
+        .gauge {
+            width: 200px;
+            height: 100px;
+            position: relative;
+        }
+        .gauge canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white">
+
+<div class="container mx-auto p-6">
+    <h1 class="text-4xl font-extrabold text-center text-white mb-6" style="font-family: 'Courier New', Courier, monospace; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);">Sensor Data and Fan Status Prediction</h1>
+
+    <div class="flex justify-center mb-6">
+        <button class="bg-white text-blue-700 py-2 px-4 rounded mr-2 hover:bg-gray-200" onclick="showView('gauge')">Gauge View</button>
+        <button class="bg-white text-blue-700 py-2 px-4 rounded ml-2 hover:bg-gray-200" onclick="showView('graph')">Graph View</button>
+    </div>
+
+    <div class="flex flex-wrap -mx-3">
+        <!-- Sensor Readings -->
+        <div class="w-full md:w-1/2 px-3 mb-6">
+            <div class="bg-white rounded-lg shadow-lg p-6 text-gray-800">
+                <h2 class="text-2xl font-bold mb-4">Sensor Data</h2>
+                <table class="w-full text-center bg-black text-black">
+                    <thead>
+                        <tr class="bg-blue-700 text-white">
+                            <th class="py-2">Parameter</th>
+                            <th class="py-2">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="bg-blue-50">
+                            <td class="py-2">Temperature (°C)</td>
+                            <td class="py-2" id="temperature">-</td>
+                        </tr>
+                        <tr class="bg-blue-100">
+                            <td class="py-2">Gas Level</td>
+                            <td class="py-2" id="gas">-</td>
+                        </tr>
+                        <tr class="bg-blue-50">
+                            <td class="py-2">Smoke Level</td>
+                            <td class="py-2" id="smoke">-</td>
+                        </tr>
+                        <tr class="bg-blue-100">
+                            <td class="py-2">Noise Level</td>
+                            <td class="py-2" id="noise">-</td>
+                        </tr>
+                        <tr class="bg-blue-50">
+                            <td class="py-2">Vibration Detected</td>
+                            <td class="py-2" id="vibration">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Prediction Result -->
+        <div class="w-full md:w-1/2 px-3 mb-6">
+            <div class="bg-white rounded-lg shadow-lg p-6 text-gray-800">
+                <h2 class="text-2xl font-bold mb-4">Fan Status Prediction</h2>
+                <div id="prediction">
+                    <p class="text-xl">Fan Status: <span id="fan_status">-</span></p>
+                    <div class="fan" id="fan">
+                        <div class="blade"></div>
+                        <div class="blade"></div>
+                        <div class="blade"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gauge and Graph Containers -->
+    <div class="flex flex-wrap -mx-3" id="visualization-section">
+        <div class="w-full px-3 mb-6" id="gauge-container" style="display: none;">
+            <div class="bg-white rounded-lg shadow-lg p-6 text-gray-800">
+                <h2 class="text-2xl font-bold mb-4">Gauge View</h2>
+                <div id="temperature-gauge" class="gauge mb-4">
+                    <canvas id="temperature-gauge-canvas" style="width: 0px; height: 0px;" height="0" width="0"></canvas>
+                <div class="gauge__fill"></div><div class="gauge__cover"></div></div>
+                <div id="gas-gauge" class="gauge mb-4">
+                    <canvas id="gas-gauge-canvas" height="0" width="0" style="width: 0px; height: 0px;"></canvas>
+                <div class="gauge__fill"></div><div class="gauge__cover"></div></div>
+                <div id="smoke-gauge" class="gauge mb-4">
+                    <canvas id="smoke-gauge-canvas" height="0" width="0" style="width: 0px; height: 0px;"></canvas>
+                <div class="gauge__fill"></div><div class="gauge__cover"></div></div>
+                <div id="noise-gauge" class="gauge mb-4">
+                    <canvas id="noise-gauge-canvas" height="0" width="0" style="width: 0px; height: 0px;"></canvas>
+                <div class="gauge__fill"></div><div class="gauge__cover"></div></div>
+                <div id="vibration-gauge" class="gauge mb-4">
+                    <canvas id="vibration-gauge-canvas" height="0" width="0" style="width: 0px; height: 0px;"></canvas>
+                <div class="gauge__fill"></div><div class="gauge__cover"></div></div>
+            </div>
+        </div>
+
+        <div class="w-full px-3 mb-6" id="graph-container" style="display: none;">
+            <div class="bg-white rounded-lg shadow-lg p-6 text-gray-800">
+                <h2 class="text-2xl font-bold mb-4">Graph View</h2>
+                <canvas id="sensor-graph" class="mb-4"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-12 text-sm text-gray-200">
+        <p>About: This application provides real-time monitoring and predictive fan control based on sensor data.</p>
+        <p>Contact: <a href="mailto:deepti2004km@gmail.com" class="text-white underline">deepti2004km@gmail.com</a></p>
+    </div>
+</div>
+
+<script>
+    let sensorData = {
+        temperature: [],
+        gas: [],
+        smoke: [],
+        noise: [],
+        vibration: []
+    };
+
+    let chart;
+    let temperatureGauge, gasGauge, smokeGauge, noiseGauge, vibrationGauge;
+
+    function showView(view) {
+        document.getElementById('gauge-container').style.display = view === 'gauge' ? 'block' : 'none';
+        document.getElementById('graph-container').style.display = view === 'graph' ? 'block' : 'none';
+    }
+
+    function fetchSensorData() {
+        fetch('/get_sensor_data')  // Replace with your server's endpoint
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("temperature").innerText = data.temperature;
+                document.getElementById("gas").innerText = data.gas;
+                document.getElementById("smoke").innerText = data.smoke;
+                document.getElementById("noise").innerText = data.noise;
+                document.getElementById("vibration").innerText = data.vibration;
+                document.getElementById("fan_status").innerText = data.fan_status;
+
+                // Update fan animation
+                const fanElement = document.getElementById('fan');
+                if (data.fan_status == 1) {
+                    fanElement.classList.add('active');
+                } else {
+                    fanElement.classList.remove('active');
+                }
+
+                // Update sensor data arrays
+                updateSensorData(sensorData.temperature, data.temperature);
+                updateSensorData(sensorData.gas, data.gas);
+                updateSensorData(sensorData.smoke, data.smoke);
+                updateSensorData(sensorData.noise, data.noise);
+                updateSensorData(sensorData.vibration, data.vibration);
+
+                // Update graph
+                updateGraph();
+
+                // Update gauges
+                updateGauge(temperatureGauge, data.temperature);
+                updateGauge(gasGauge, data.gas);
+                updateGauge(smokeGauge, data.smoke);
+                updateGauge(noiseGauge, data.noise);
+                updateGauge(vibrationGauge, data.vibration);
+            })
+            .catch(error => console.error('Error fetching sensor data:', error));
+    }
+
+    function updateSensorData(sensorArray, newValue) {
+        if (sensorArray.length >= 10) {
+            sensorArray.shift();
+        }
+        sensorArray.push(newValue);
+    }
+
+    function updateGraph() {
+        if (!chart) {
+            const ctx = document.getElementById('sensor-graph').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 10}, (_, i) => i + 1),
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: sensorData.temperature,
+                            borderColor: '#FF5733',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Gas Level',
+                            data: sensorData.gas,
+                            borderColor: '#33FF57',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Smoke Level',
+                            data: sensorData.smoke,
+                            borderColor: '#3357FF',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Noise Level',
+                            data: sensorData.noise,
+                            borderColor: '#FF33A1',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Vibration Detected',
+                            data: sensorData.vibration,
+                            borderColor: '#FF8C33',
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } else {
+            chart.data.datasets[0].data = sensorData.temperature;
+            chart.data.datasets[1].data = sensorData.gas;
+            chart.data.datasets[2].data = sensorData.smoke;
+            chart.data.datasets[3].data = sensorData.noise;
+            chart.data.datasets[4].data = sensorData.vibration;
+            chart.update();
+        }
+    }
+
+    function updateGauge(gauge, value) {
+        gauge.querySelector('.gauge__fill').style.transform = `rotate(${value / 100 * 180}deg)`;
+        gauge.querySelector('.gauge__cover').textContent = `${value}%`;
+    }
+
+    function initializeGauges() {
+        const gauges = document.querySelectorAll('.gauge');
+        gauges.forEach(gauge => {
+            const gaugeFill = document.createElement('div');
+            gaugeFill.classList.add('gauge__fill');
+            gauge.appendChild(gaugeFill);
+
+            const gaugeCover = document.createElement('div');
+            gaugeCover.classList.add('gauge__cover');
+            gauge.appendChild(gaugeCover);
+        });
+
+        temperatureGauge = document.getElementById('temperature-gauge');
+        gasGauge = document.getElementById('gas-gauge');
+        smokeGauge = document.getElementById('smoke-gauge');
+        noiseGauge = document.getElementById('noise-gauge');
+        vibrationGauge = document.getElementById('vibration-gauge');
+    }
+
+    // Call the function every 2 seconds to update data without page refresh
+    setInterval(fetchSensorData, 2000);
+
+    fetchSensorData();  // Initial call to populate data on page load
+    initializeGauges(); // Initialize gauges on page load
+</script>
+
+</body>
+</html>
